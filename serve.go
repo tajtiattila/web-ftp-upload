@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 )
 
 func NewServeMux() *http.ServeMux {
@@ -10,19 +11,37 @@ func NewServeMux() *http.ServeMux {
 	return sm
 }
 
-var up = NewUploader()
+type page struct {
+	Name      string
+	Userfiles []string
+	QueueSize int64
+}
 
 func handleUpload(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
-		tmplUpload.Execute(w, nil)
+		v := req.URL.Query()
+		nv := v["name"]
+		p := &page{}
+		if len(nv) != 0 {
+			n := nv[0]
+			p.Name = strings.Title(n)
+			p.Userfiles = up.Files(n)
+		}
+		p.QueueSize = up.QueueSize()
+		tmplUpload.Execute(w, p)
 	case "POST":
+		u := req.FormValue("name")
+		if u == "" {
+			http.Error(w, "Missing name", http.StatusInternalServerError)
+			return
+		}
 		f, fh, err := req.FormFile("file")
 		if err != nil {
 			http.Error(w, "Missing file: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		err = up.Add(fh.Filename, f)
+		err = upload(u, fh.Filename, f)
 		if err != nil {
 			http.Error(w, "Upload error: "+err.Error(), http.StatusInternalServerError)
 			return

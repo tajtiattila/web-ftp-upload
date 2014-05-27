@@ -21,6 +21,11 @@ func check(err error) {
 }
 
 func main() {
+	err := inituploader(FTP_URL)
+	if err != nil {
+		die("can't init uploader", err)
+	}
+
 	addr := flag.String("addr", "", `address to listen on, eg. ":8080"`)
 	sock := flag.String("sock", "", `socket file to listen on`)
 	ext := flag.String("ext", "ext", `directory for external files`)
@@ -39,10 +44,7 @@ func main() {
 		die("either -sock or -addr necessary")
 	}
 
-	var (
-		l   net.Listener
-		err error
-	)
+	var l net.Listener
 	if *addr != "" {
 		l, err = net.Listen("tcp", *addr)
 	} else {
