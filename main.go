@@ -54,7 +54,7 @@ func main() {
 	defer l.Close()
 
 	m := http.NewServeMux()
-	m.HandleFunc("/web-ftp-upload/", handleUpload)
+	m.HandleFunc("/web-ftp-upload/", handlehttp)
 	m.Handle("/web-ftp-upload/ext/", http.StripPrefix("/web-ftp-upload/ext/", http.FileServer(http.Dir(*ext))))
 	if *usefcgi {
 		err = fcgi.Serve(l, m)
