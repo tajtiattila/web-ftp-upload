@@ -6,20 +6,19 @@ import (
 
 type uploadqueue struct {
 	mtx  sync.RWMutex
-	buf  []*Upload            // circular buffer
-	size int                  // number of elements in buffer
-	head int                  // read position
-	tail int                  // write position
-	ch   chan bool            // element added to empty queue
-	cb   func(<-chan *Upload) // update callback
+	buf  []CachedFile // circular buffer
+	size int          // number of elements in buffer
+	head int          // read position
+	tail int          // write position
+	ch   chan bool    // element added to empty queue
 }
 
-func newuploadqueue(q []*Upload) *uploadqueue {
+func newuploadqueue(q []CachedFile) *uploadqueue {
 	n := 16
 	for n < len(q) {
 		n *= 2
 	}
-	buf := make([]*Upload, n)
+	buf := make([]CachedFile, n)
 	copy(buf, q)
 	return &uploadqueue{
 		buf:  buf,
@@ -30,12 +29,12 @@ func newuploadqueue(q []*Upload) *uploadqueue {
 	}
 }
 
-func (q *uploadqueue) push(u *Upload) {
+func (q *uploadqueue) push(u CachedFile) {
 	q.mtx.Lock()
 	defer q.mtx.Unlock()
 	if q.head == q.tail && q.size > 0 {
 		nsiz := len(q.buf) * 2
-		nbuf := make([]*Upload, nsiz)
+		nbuf := make([]CachedFile, nsiz)
 		copy(nbuf, q.buf[q.head:])
 		copy(nbuf[len(q.buf)-q.head:], q.buf[:q.head])
 		q.head = 0
@@ -48,10 +47,9 @@ func (q *uploadqueue) push(u *Upload) {
 	if q.ch != nil && q.size == 1 {
 		q.ch <- true
 	}
-	q.docallback()
 }
 
-func (q *uploadqueue) peek() *Upload {
+func (q *uploadqueue) peek() CachedFile {
 	q.mtx.RLock()
 	defer q.mtx.RUnlock()
 	if q.size == 0 {
@@ -78,21 +76,4 @@ func (q *uploadqueue) pop() {
 	} else {
 		q.head = (q.head + 1) % len(q.buf)
 	}
-	q.docallback()
-}
-
-func (q *uploadqueue) docallback() {
-	if q.cb == nil {
-		return
-	}
-	ch := make(chan *Upload)
-	go func() {
-		h := q.head
-		for i := 0; i < q.size; i++ {
-			ch <- q.buf[h]
-			h = (h + 1) % len(q.buf)
-		}
-		close(ch)
-	}()
-	q.cb(ch)
 }

@@ -4,8 +4,10 @@ import (
 	"code.google.com/p/go.net/idna"
 	"fmt"
 	"github.com/jlaffaye/ftp"
+	"io"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -27,17 +29,10 @@ const (
 
 var ErrQuit = fmt.Errorf("Quitting")
 
-type Upload struct {
-	user     string
-	encname  string
-	filename string
-	size     int64
-	content  CachedContent
-}
-
 type Uploader struct {
 	Addr, User, Pass, RemoteDir string
 
+	log    *log.Logger
 	conn   *ftp.ServerConn
 	status int
 	err    error
@@ -46,9 +41,6 @@ type Uploader struct {
 
 	fmtx  sync.RWMutex
 	files map[string][]string
-
-	smtx      sync.RWMutex
-	queuesize int64
 }
 
 func NewUploader(rawurl string) (*Uploader, error) {
@@ -77,6 +69,7 @@ func NewUploader(rawurl string) (*Uploader, error) {
 		Pass:      pass,
 		RemoteDir: url.Path,
 
+		log:    log.New(os.Stderr, "UPLOADR ", log.LstdFlags),
 		queue:  newuploadqueue(nil),
 		chquit: make(chan bool),
 		files:  make(map[string][]string),
@@ -89,18 +82,12 @@ func NewUploader(rawurl string) (*Uploader, error) {
 	return u, nil
 }
 
-func (u *Uploader) Add(uploader, filename string, content CachedContent) error {
-	size, err := content.Size()
+func (u *Uploader) Add(f CachedFile) error {
+	_, err := Encodename(f.User())
 	if err != nil {
 		return err
 	}
-	uploader = strings.ToLower(uploader)
-	encname, err := Encodename(uploader)
-	if err != nil {
-		return err
-	}
-	u.add_file(uploader, filename)
-	u.queue.push(&Upload{uploader, encname, filename, size, content})
+	u.queue.push(f)
 	return nil
 }
 
@@ -116,33 +103,27 @@ func (u *Uploader) Files(uploader string) []string {
 	return u.files[uploader]
 }
 
-func (u *Uploader) QueueSize() int64 {
-	u.smtx.RLock()
-	defer u.smtx.RUnlock()
-	return u.queuesize
-}
-
 func (u *Uploader) setStatus(status int, err error) {
 }
 
 func (u *Uploader) connect(once bool) error {
 	for u.conn == nil {
-		log.Println("Connecting")
+		u.log.Println("Connecting")
 		u.setStatus(STATUS_CONNECTING, nil)
 		conn, err := ftp.Connect(u.Addr)
 		if err == nil {
-			log.Println("Logging in ", u.User)
+			u.log.Println("Logging in", u.User)
 			err = conn.Login(u.User, u.Pass)
 			if err == nil {
-				log.Println("Login successful")
+				u.log.Println("Login successful")
 				u.conn = conn
 				u.setStatus(STATUS_CONNECTED, nil)
 				break
 			} else {
-				log.Println("Login failed: ", err)
+				u.log.Println("Login failed:", err)
 			}
 		} else {
-			log.Println("Connection failed: ", err)
+			u.log.Println("Connection failed:", err)
 		}
 		u.setStatus(STATUS_ERROR, err)
 		if once {
@@ -159,10 +140,10 @@ func (u *Uploader) connect(once bool) error {
 
 func (u *Uploader) disconnect(xerr error) {
 	if u.conn != nil {
-		log.Println("Disconnecting")
+		u.log.Println("Disconnecting")
 		u.setStatus(STATUS_DISCONNECTING, nil)
 		if err := u.conn.Quit(); err != nil {
-			log.Println("Disconnect failed:", err)
+			u.log.Println("Disconnect failed:", err)
 		}
 		u.conn = nil
 		if xerr == nil {
@@ -174,10 +155,10 @@ func (u *Uploader) disconnect(xerr error) {
 	}
 }
 
-func (u *Uploader) upload(encname, filename string, content CachedContent) bool {
+func (u *Uploader) upload(encname, filename string, content io.ReadCloser) bool {
 	err := u.conn.ChangeDir(u.RemoteDir)
 	if err != nil {
-		log.Println("CD to remote dir ", u.RemoteDir, " failed: ", err)
+		u.log.Println("CD to remote dir", u.RemoteDir, "failed:", err)
 		u.disconnect(err)
 		return false
 	}
@@ -185,20 +166,20 @@ func (u *Uploader) upload(encname, filename string, content CachedContent) bool 
 	errmk := u.conn.MakeDir(userdir) // don't check, may exist
 	err = u.conn.ChangeDir(userdir)
 	if err != nil {
-		log.Println("Creating/changing to directory ", userdir, " failed: ", errmk, err)
+		u.log.Println("Creating/changing to directory", userdir, "failed:", errmk, err)
 		u.disconnect(err)
 		return false
 	}
 	err = u.conn.Stor(filename, content)
 	if err != nil {
-		log.Println("Upload of ", encname+"/"+filename, " failed: ", err)
+		u.log.Println("Upload of", encname+"/"+filename, "failed:", err)
 		u.disconnect(err)
 		return false
 	}
-	log.Println("File ", encname+"/"+filename, " uploaded")
+	u.log.Println("File", encname+"/"+filename, "uploaded")
 	err = content.Close()
 	if err != nil {
-		log.Println("Cleanup failed: ", err)
+		u.log.Println("Close failed:", err)
 	}
 	return true
 }
@@ -206,6 +187,7 @@ func (u *Uploader) upload(encname, filename string, content CachedContent) bool 
 func (u *Uploader) add_file(user, filename string) {
 	u.fmtx.Lock()
 	defer u.fmtx.Unlock()
+	user = strings.ToLower(user)
 	v := u.files[user]
 	for _, fn := range v {
 		if filename == fn {
@@ -225,12 +207,12 @@ func (u *Uploader) find_files() (err error) {
 		}
 	}()
 	if err = u.conn.ChangeDir(u.RemoteDir); err != nil {
-		log.Println("CD to remote dir ", u.RemoteDir, " failed: ", err)
+		u.log.Println("CD to remote dir", u.RemoteDir, "failed:", err)
 		return err
 	}
 	var unames []string
 	if unames, err = u.conn.NameList("."); err != nil {
-		log.Println("Can't get list of users")
+		u.log.Println("Can't get list of users")
 		return err
 	}
 	nu, nf := 0, 0
@@ -238,14 +220,14 @@ func (u *Uploader) find_files() (err error) {
 		if strings.HasPrefix(name, USER_DIR_PREFIX) {
 			user, err := Decodename(name[len(USER_DIR_PREFIX):])
 			if user == "" || err != nil {
-				log.Println("Unexpected file/folder: ", name[len(USER_DIR_PREFIX):], err)
+				u.log.Println("Unexpected file/folder:", name[len(USER_DIR_PREFIX):], err)
 				continue
 			}
 			if user != "" {
 				nu++
 				var fnames []string
 				if fnames, err = u.conn.NameList(name); err != nil {
-					log.Println("Getting filenames for ", user, " failed: ", err)
+					u.log.Println("Getting filenames for", user, "failed:", err)
 				} else {
 					u.files[user] = fnames
 					nf += len(fnames)
@@ -253,7 +235,7 @@ func (u *Uploader) find_files() (err error) {
 			}
 		}
 	}
-	log.Println("Found", nf, "files for", nu, "users")
+	u.log.Println("Found", nf, "files for", nu, "users")
 	return
 }
 
@@ -262,18 +244,25 @@ func (u *Uploader) run() {
 		u.disconnect(nil)
 	}()
 	for {
-		if e := u.queue.peek(); e != nil {
-			if _, err := e.content.Seek(0, 0); err != nil {
-				log.Println("Can't seek content for ", e.user+"/"+e.filename, ", dropping")
+		if f := u.queue.peek(); f != nil {
+			content, err := f.Open()
+			if err != nil {
+				log.Println("Can't open content for ", f.User()+"/"+f.Filename(), ", dropping")
 				u.queue.pop()
+				f.Discard()
 				continue
 			}
 			if u.connect(false) != nil {
 				return
 			}
-			if u.upload(e.encname, e.filename, e.content) {
+			encname, err := Encodename(f.User())
+			if err != nil {
+				panic(err) // can't happen Encodename is called in Add()
+			}
+			if u.upload(encname, f.Filename(), content) {
+				u.add_file(f.User(), f.Filename())
 				u.queue.pop()
-				u.diffsize(-e.size)
+				f.Discard()
 			}
 		} else {
 			select {
@@ -288,14 +277,8 @@ func (u *Uploader) run() {
 	}
 }
 
-func (u *Uploader) diffsize(d int64) {
-	u.smtx.Lock()
-	defer u.smtx.Unlock()
-	u.queuesize += d
-}
-
 func Encodename(x string) (string, error) {
-	return idna.ToASCII(x)
+	return idna.ToASCII(strings.ToLower(x))
 }
 
 func Decodename(s string) (string, error) {

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	MultByte = iota << 10
+	MultByte = 1 << (10 * iota)
 	MultKiB
 	MultMiB
 	MultGiB
@@ -16,13 +16,13 @@ var tmplUpload = template.Must(template.New("foo").Funcs(template.FuncMap{
 	"filesize": func(n int64) string {
 		switch {
 		case n < MultKiB:
-			return fmt.Sprint(n, "byte")
+			return fmt.Sprint(n, " byte")
 		case n < MultMiB:
-			return fmt.Sprint(n/MultKiB, "KiB")
+			return fmt.Sprint(n/MultKiB, " KiB")
 		case n < MultGiB:
-			return fmt.Sprint(n/MultMiB, "MiB")
+			return fmt.Sprint(n/MultMiB, " MiB")
 		}
-		return fmt.Sprint(n/MultGiB, "GiB")
+		return fmt.Sprint(n/MultGiB, " GiB")
 	},
 }).Parse(`<!DOCTYPE html>
 <html>
@@ -44,7 +44,7 @@ ul.filelist li {
 		<p>Szia <b>{{.Name}}</b>!</p>
 		<p>Add meg a feltöltendő fájlokat, vagy klikk <a href=".">ide</a>, ha másik nevet adnál meg.</p>
 		{{if .Userfiles}}
-		<p><b>{{.Name}}</b> néven feltöltött fájlok:</p>
+		<p><b>{{.Name}}</b> néven korábban feltöltött fájlok:</p>
 		<ul class="filelist">
 			{{range .Userfiles}}
 			<li>{{.}}</li>

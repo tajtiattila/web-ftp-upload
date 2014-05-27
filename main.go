@@ -63,3 +63,26 @@ func main() {
 	}
 	check(err)
 }
+
+var (
+	uploader *Uploader
+	cachedir *CacheDir
+)
+
+func inituploader(url string) (err error) {
+	cachedir, err = OpenCacheDir("")
+	if err != nil {
+		return
+	}
+	uploader, err = NewUploader(url)
+	if err != nil {
+		return
+	}
+	for cached := range cachedir.Files() {
+		err = uploader.Add(cached)
+		if err != nil {
+			cached.Discard()
+		}
+	}
+	return
+}
