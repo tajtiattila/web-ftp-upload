@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -77,6 +78,17 @@ func (d *CacheDir) Files() <-chan CachedFile {
 		close(ch)
 	}()
 	return ch
+}
+
+// Userfiles returns a new lists of cached files for the user.
+func (d *CacheDir) Userfiles(user string) (r []string) {
+	user = strings.ToLower(user)
+	for e := range d.elems {
+		if strings.ToLower(e.Un) == user {
+			r = append(r, e.Fn)
+		}
+	}
+	return
 }
 
 func (d *CacheDir) cachecontent(r io.Reader) (cachedname string, siz int64, err error) {

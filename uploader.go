@@ -96,7 +96,7 @@ func (u *Uploader) Close() error {
 	return nil
 }
 
-func (u *Uploader) Files(uploader string) []string {
+func (u *Uploader) Userfiles(uploader string) []string {
 	uploader = strings.ToLower(uploader)
 	u.fmtx.RLock()
 	defer u.fmtx.RUnlock()

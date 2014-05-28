@@ -1,19 +1,25 @@
 package main
 
 import (
+	"log"
 	"math/rand"
 	"net/http"
+	"os"
+	"sort"
 	"strings"
 	"time"
 )
 
 type page struct {
-	Name      string
-	Userfiles []string
-	QueueSize int64
+	Name        string
+	Donefiles   []string
+	Cachedfiles []string
+	QueueSize   int64
+	QueueLoad   int
 }
 
 var sessions = make(map[string]string)
+var srvlog = log.New(os.Stderr, "WWW     ", log.LstdFlags)
 
 func handlehttp(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
@@ -87,10 +93,17 @@ func showPage(w http.ResponseWriter, user string) {
 	p := &page{}
 	if user != "" {
 		p.Name = strings.Title(user)
-		p.Userfiles = uploader.Files(user)
+		p.Donefiles = uploader.Userfiles(user)
+		sort.Strings(p.Donefiles)
+		p.Cachedfiles = cachedir.Userfiles(user)
+		sort.Strings(p.Cachedfiles)
 	}
 	p.QueueSize = cachedir.ByteSize
-	tmplUpload.Execute(w, p)
+	p.QueueLoad = int(p.QueueSize * 100 / (8 * 1024 * 1024 * 1024))
+	err := tmplUpload.Execute(w, p)
+	if err != nil {
+		srvlog.Println(err)
+	}
 }
 
 func gensid() string {

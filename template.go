@@ -12,23 +12,21 @@ const (
 	MultGiB
 )
 
-func tmplBase(n string) *template.Template {
-	return template.New(n).Funcs(template.FuncMap{
-		"filesize": func(n int64) string {
-			switch {
-			case n < MultKiB:
-				return fmt.Sprint(n, " byte")
-			case n < MultMiB:
-				return fmt.Sprint(n/MultKiB, " KiB")
-			case n < MultGiB:
-				return fmt.Sprint(n/MultMiB, " MiB")
-			}
-			return fmt.Sprint(n/MultGiB, " GiB")
-		},
-	})
+var tmplFuncs = template.FuncMap{
+	"filesize": func(n int64) string {
+		switch {
+		case n < MultKiB:
+			return fmt.Sprint(n, " byte")
+		case n < MultMiB:
+			return fmt.Sprint(n/MultKiB, " KiB")
+		case n < MultGiB:
+			return fmt.Sprint(n/MultMiB, " MiB")
+		}
+		return fmt.Sprint(n/MultGiB, " GiB")
+	},
 }
 
-var tmplUpload = template.Must(tmplBase("upload").Parse(`<!DOCTYPE html>
+var tmplUpload = template.Must(template.New("upload").Funcs(tmplFuncs).Parse(`<!DOCTYPE html>
 <html>
 	<head>
 		<title>Web-FTP uploader</title>
@@ -38,53 +36,20 @@ var tmplUpload = template.Must(tmplBase("upload").Parse(`<!DOCTYPE html>
 		<script src="./ext/js/dropzone.min.js"></script>
 		<link rel="stylesheet" href="./ext/css/dropzone.css"/>
 		{{end}}
-		<style>
-body {
-	font-family: 'Open Sans', sans-serif;
-}
-ul.filelist li {
-	display: inline;
-}
-h1 {
-	text-align: center;
-}
-form.name {
-	margin: 0 auto;
-	width: 250px;
-}
-div.info {
-	border: 1px solid #aaa;
-	border-radius: 1em;
-	background-color: #eee;
-	color: #666;
-	margin: 30px auto;
-	padding: 1em;
-	width: 80%;
-	font-style: italic;
-	font-size: 80%;
-}
-		</style>
+		<link rel="stylesheet" href="./ext/css/upload.css"/>
 	</head>
 	<body>
 		<h1>Web-FTP feltöltőcucc</h1>
 		{{if .Name}}
 		<p>Üdvözlet, <b>{{.Name}}</b>!</p>
-		<p>Add meg a feltöltendő fájlokat, vagy klikk <a href="?login=1">ide</a>, ha másik nevet adnál meg.</p>
-		{{if .Userfiles}}
-		<p><b>{{.Name}}</b> néven korábban feltöltött fájlok:</p>
-		<ul class="filelist">
-			{{range .Userfiles}}
-			<li>{{.}}</li>
-			{{end}}
-		</ul>
-		{{else}}
-		<p><b>{{.Name}}</b> névvel még nem töltöttek fel fájlokat.</p>
-		{{end}}
-		<p>Jelenleg {{filesize .QueueSize}} FTP-re töltése van folyamatban.</p>
+		<p>Add meg a feltöltendő fájlokat, vagy <a href="?login=1">klikk ide</a>, ha másik nevet adnál meg.</p>
 		<div id="dropzone">
 			<form id="upload" action="." class="dropzone">
 				<input name="do" type="hidden" value="upload">
 			</form>
+		</div>
+		<div id="info">
+			{{template "info" .}}
 		</div>
 		{{else}}
 			<form method="post" class="name" action=".">
@@ -97,3 +62,28 @@ div.info {
 	</body>
 </html>
 `))
+
+var tmplInfo = template.Must(tmplUpload.New("info").Funcs(tmplFuncs).Parse(`<div>
+{{if .QueueSize}}
+<p>Jelenleg összesen {{filesize .QueueSize}} FTP-re töltése van folyamatban.</p>
+{{if gt .QueueLoad 80}}
+	<p><i class="fa fa-exclamation-triangle"></i> Ajjaj, ha most töltesz fel, nem biztos, hogy sikerül.</p>
+{{else if gt .QueueLoad 50}}
+	<p><i class="fa fa-info-circle"></i> Elég sok fájl töltődik már fölfele. Inkább később tölts fel.</p>
+{{end}}
+{{end}}
+{{if or .Cachedfiles .Donefiles}}
+<p><b>{{.Name}}</b> névvel korábban feltöltött fájlok:</p>
+<ul class="filelist">
+	{{range .Cachedfiles}}
+	<li class="working">{{.}}</li>
+	{{end}}
+	{{range .Donefiles}}
+	<li class="done">{{.}}</li>
+	{{end}}
+</ul>
+{{else}}
+<p><i class="fa fa-info-circle"></i> <b>{{.Name}}</b> névvel még nem töltöttek fel fájlokat,
+vagy azok már fel lettek dolgozva.</p>
+{{end}}
+</div>`))
