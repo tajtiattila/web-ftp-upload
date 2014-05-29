@@ -140,7 +140,7 @@ func (d *CacheDir) load() error {
 		return err
 	}
 	for _, e := range d.velems {
-		e.Dir = d
+		e.dir = d
 		if _, xerr := os.Stat(e.Cn); xerr == nil {
 			// add only existing files
 			d.ByteSize += e.Siz
@@ -195,7 +195,7 @@ type CachedFile interface {
 }
 
 type CacheEntry struct {
-	Dir *CacheDir
+	dir *CacheDir
 	Un  string
 	Fn  string
 	Cn  string
@@ -204,6 +204,6 @@ type CacheEntry struct {
 
 func (e *CacheEntry) User() string                 { return e.Un }
 func (e *CacheEntry) Filename() string             { return e.Fn }
-func (e *CacheEntry) Open() (io.ReadCloser, error) { return e.Dir.open(e) }
-func (e *CacheEntry) Discard() error               { return e.Dir.remove(e) }
+func (e *CacheEntry) Open() (io.ReadCloser, error) { return e.dir.open(e) }
+func (e *CacheEntry) Discard() error               { return e.dir.remove(e) }
 func (e *CacheEntry) Size() int64                  { return e.Siz }
