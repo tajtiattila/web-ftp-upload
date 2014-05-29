@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/gob"
+	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
@@ -18,37 +20,54 @@ type page struct {
 	QueueLoad   int
 }
 
-var sessions = make(map[string]string)
-var srvlog = log.New(os.Stderr, "WWW     ", log.LstdFlags)
+type WebServer struct {
+	Prefix   string
+	Sessions map[string]string
+	log      *log.Logger
+}
 
-func handlehttp(w http.ResponseWriter, req *http.Request) {
+func NewWebServer(prefix string) *WebServer {
+	s := &WebServer{
+		Prefix:   prefix,
+		Sessions: make(map[string]string),
+		log:      log.New(os.Stderr, "WWW     ", log.LstdFlags),
+	}
+	s.load()
+	return s
+}
+
+func (s *WebServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
 		var sid string
 		if ck, err := req.Cookie("sid"); err == nil {
 			sid = ck.Value
 		}
+		if req.FormValue("info") != "" {
+			s.showPage(w, tmplInfo, s.Sessions[sid])
+			return
+		}
 		var user string
 		if req.FormValue("login") == "" {
-			user = sessions[sid]
+			user = s.Sessions[sid]
 		} else {
-			delete(sessions, sid)
+			delete(s.Sessions, sid)
 		}
-		showPage(w, user)
+		s.showPage(w, tmplHome, user)
 	case "POST":
 		d := req.FormValue("do")
 		switch d {
 		case "login":
-			handleLogin(w, req)
+			s.handleLogin(w, req)
 		case "upload":
-			handleUpload(w, req)
+			s.handleUpload(w, req)
 		default:
 			http.Error(w, "Invalid request", http.StatusInternalServerError)
 		}
 	}
 }
 
-func handleLogin(w http.ResponseWriter, req *http.Request) {
+func (s *WebServer) handleLogin(w http.ResponseWriter, req *http.Request) {
 	user := req.FormValue("name")
 	if user == "" {
 		http.Error(w, "Missing name", http.StatusInternalServerError)
@@ -56,15 +75,15 @@ func handleLogin(w http.ResponseWriter, req *http.Request) {
 	}
 	sid := gensid()
 	http.SetCookie(w, &http.Cookie{Name: "sid", Value: sid})
-	sessions[sid] = user
+	s.Sessions[sid] = user
 	http.Redirect(w, req, ".", http.StatusMovedPermanently)
-	//showPage(w, user)
+	s.save()
 }
 
-func handleUpload(w http.ResponseWriter, req *http.Request) {
+func (s *WebServer) handleUpload(w http.ResponseWriter, req *http.Request) {
 	var user string
 	if ck, err := req.Cookie("sid"); err == nil {
-		user = sessions[ck.Value]
+		user = s.Sessions[ck.Value]
 	}
 	if user == "" {
 		http.Error(w, "Session id missing or invalid", http.StatusInternalServerError)
@@ -89,7 +108,42 @@ func handleUpload(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func showPage(w http.ResponseWriter, user string) {
+func (s *WebServer) load() {
+	f, err := os.Open(s.datafilename())
+	switch {
+	case err == nil:
+		defer f.Close()
+		err = gob.NewDecoder(f).Decode(&s.Sessions)
+	case os.IsNotExist(err):
+		err = nil
+	}
+	if err != nil {
+		s.log.Println("Load error:", err)
+	}
+}
+
+func (s *WebServer) save() {
+	f, err := SafeFileWriter(s.datafilename())
+	if err == nil {
+		defer func() {
+			err = f.Close()
+			if err != nil {
+				s.log.Println("Can't close:", err)
+			}
+		}()
+		err = gob.NewEncoder(f).Encode(s.Sessions)
+	}
+	if err != nil {
+		s.log.Println("Can't save:", err)
+	}
+}
+
+func (s *WebServer) datafilename() string {
+	p, _ := GetCacheDir("")
+	return p + "/session.dat"
+}
+
+func (s *WebServer) showPage(w http.ResponseWriter, tmpl *template.Template, user string) {
 	p := &page{}
 	if user != "" {
 		p.Name = strings.Title(user)
@@ -100,9 +154,9 @@ func showPage(w http.ResponseWriter, user string) {
 	}
 	p.QueueSize = cachedir.ByteSize
 	p.QueueLoad = int(p.QueueSize * 100 / (8 * 1024 * 1024 * 1024))
-	err := tmplUpload.Execute(w, p)
+	err := tmplHome.Execute(w, p)
 	if err != nil {
-		srvlog.Println(err)
+		s.log.Println(err)
 	}
 }
 

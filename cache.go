@@ -24,19 +24,7 @@ type CacheDir struct {
 // OpenCacheDir opens or creates a cache directory, and
 // loads already cached content, if available.
 func OpenCacheDir(name string) (*CacheDir, error) {
-	if name == "" {
-		name = "upload-cache"
-	}
-	p := os.Getenv("XDG_CACHE_HOME")
-	if p == "" {
-		h := os.Getenv("HOME")
-		if h == "" {
-			h = "/"
-		}
-		p = h + ".cache"
-	}
-	p += "/" + name
-	err := os.MkdirAll(p, 0700)
+	p, err := GetCacheDir(name)
 	if err != nil {
 		return nil, err
 	}
