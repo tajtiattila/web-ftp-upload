@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/gob"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +16,7 @@ type CacheDir struct {
 	Path     string
 	ByteSize int64
 	elems    map[*CacheEntry]bool
+	velems   []*CacheEntry
 	log      *log.Logger
 	mtx      sync.Mutex
 }
@@ -127,28 +128,31 @@ func (d *CacheDir) remove(e *CacheEntry) (err error) {
 
 func (d *CacheDir) load() error {
 	f, err := os.Open(d.datafilename())
+	switch {
+	case err == nil:
+		defer f.Close()
+		err = json.NewDecoder(f).Decode(&d.velems)
+	case os.IsNotExist(err):
+		err = nil
+	}
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
 		d.log.Println("Load error:", err)
 		return err
 	}
-	defer f.Close()
-	e0 := make(map[*CacheEntry]bool)
-	err = gob.NewDecoder(f).Decode(&e0)
-	if err == nil {
-		d.ByteSize = 0
-		for e := range e0 {
-			e.Dir = d
-			if _, err = os.Stat(e.Cn); err == nil {
-				// add only existing files
-				d.ByteSize += e.Siz
-				d.elems[e] = true
-			}
-		}
-		d.log.Println("Loaded cache of", d.ByteSize, "bytes in", len(d.elems), "files")
+	d.ByteSize = 0
+	d.elems = make(map[*CacheEntry]bool)
+	if len(d.velems) == 0 {
+		return err
 	}
+	for _, e := range d.velems {
+		e.Dir = d
+		if _, xerr := os.Stat(e.Cn); xerr == nil {
+			// add only existing files
+			d.ByteSize += e.Siz
+			d.elems[e] = true
+		}
+	}
+	d.log.Println("Loaded cache of", d.ByteSize, "bytes in", len(d.elems), "files")
 	return err
 }
 
@@ -160,10 +164,23 @@ func (d *CacheDir) save() {
 		}
 		return
 	}
-	f, err := os.Create(d.datafilename())
+	if cap(d.velems) < len(d.elems) {
+		d.velems = make([]*CacheEntry, 0, 2*len(d.elems))
+	} else {
+		d.velems = d.velems[:0]
+	}
+	for e := range d.elems {
+		d.velems = append(d.velems, e)
+	}
+	f, err := SafeFileWriter(d.datafilename())
 	if err == nil {
-		defer f.Close()
-		err = gob.NewEncoder(f).Encode(d.elems)
+		defer func() {
+			err = f.Close()
+			if err != nil {
+				d.log.Println("Can't close:", err)
+			}
+		}()
+		err = json.NewEncoder(f).Encode(d.velems)
 	}
 	if err != nil {
 		d.log.Println("Can't save:", err)
@@ -171,7 +188,7 @@ func (d *CacheDir) save() {
 }
 
 func (d *CacheDir) datafilename() string {
-	return d.Path + "/files.dat"
+	return d.Path + "/cachefiles.json"
 }
 
 type CachedFile interface {
