@@ -18,7 +18,7 @@ type CacheDir struct {
 	elems    map[*CacheEntry]bool
 	velems   []*CacheEntry
 	log      *log.Logger
-	mtx      sync.Mutex
+	mtx      sync.RWMutex
 }
 
 // OpenCacheDir opens or creates a cache directory, and
@@ -42,17 +42,19 @@ func OpenCacheDir(name string) (*CacheDir, error) {
 
 // Add a new cache entry for the user and filename using the provided io.Reader.
 func (d *CacheDir) Add(user, filename string, r io.Reader) (f CachedFile, err error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
 	cachedname, siz, err := d.cachecontent(r)
 	if err != nil {
 		return nil, err
 	}
+
+	d.mtx.Lock()
 	d.ByteSize += siz
 	e := &CacheEntry{d, user, filename, cachedname, siz}
 	d.elems[e] = true
 	d.log.Println("Added", e.Fn, "for", e.Un, "as", filepath.Base(e.Cn))
 	d.save()
+	d.mtx.Unlock()
+
 	return e, nil
 }
 
@@ -72,6 +74,8 @@ func (d *CacheDir) Files() <-chan CachedFile {
 // Userfiles returns a new lists of cached files for the user.
 func (d *CacheDir) Userfiles(user string) (r []string) {
 	user = strings.ToLower(user)
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
 	for e := range d.elems {
 		if strings.ToLower(e.Un) == user {
 			r = append(r, e.Fn)
@@ -101,16 +105,19 @@ func (d *CacheDir) open(e *CacheEntry) (io.ReadCloser, error) {
 }
 
 func (d *CacheDir) remove(e *CacheEntry) (err error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-	d.ByteSize -= e.Siz
 	err = os.Remove(e.Cn)
+
+	d.mtx.Lock()
+	d.ByteSize -= e.Siz
 	delete(d.elems, e)
+	d.save()
+	d.mtx.Unlock()
+
 	d.log.Println("Removed", e.Fn, "for", e.Un, "as", filepath.Base(e.Cn))
 	if err != nil {
 		d.log.Println("Remove failed:", err)
 	}
-	d.save()
+
 	return
 }
 
