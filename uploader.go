@@ -229,8 +229,14 @@ func (u *Uploader) find_files() (err error) {
 				if fnames, err = u.conn.NameList(name); err != nil {
 					u.log.Println("Getting filenames for", user, "failed:", err)
 				} else {
-					u.files[user] = fnames
-					nf += len(fnames)
+					l := make([]string, 0, len(fnames))
+					for _, n := range fnames {
+						if len(n) != 0 && n[0] != '.' && n != "Thumbs.db" {
+							l = append(l, n)
+						}
+					}
+					u.files[user] = l
+					nf += len(l)
 				}
 			}
 		}
