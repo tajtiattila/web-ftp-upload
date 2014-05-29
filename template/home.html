@@ -1,0 +1,35 @@
+{{define "home"}}<!DOCTYPE html>
+<html>
+	<head>
+		<title>Web-FTP uploader</title>
+		<link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+		<link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700" rel="stylesheet" type="text/css">
+		{{if .Name}}
+		<script src="./ext/js/dropzone.min.js"></script>
+		<link rel="stylesheet" href="./ext/css/dropzone.css"/>
+		{{end}}
+		<link rel="stylesheet" href="./ext/css/upload.css"/>
+	</head>
+	<body>
+		<h1>Web-FTP feltöltőcucc</h1>
+		{{if .Name}}
+		<p>Üdvözlet, <b>{{.Name}}</b>!</p>
+		<p>Add meg a feltöltendő fájlokat, vagy <a href="?login=1">klikk ide</a>, ha másik nevet adnál meg.</p>
+		<div id="dropzone">
+			<form id="upload" action="." class="dropzone">
+				<input name="do" type="hidden" value="upload">
+			</form>
+		</div>
+		<div id="info">
+			{{template "info" .}}
+		</div>
+		{{else}}
+			<form method="post" class="name" action=".">
+				<i class="fa fa-user"></i> <input name="name" type="text" placeholder="név"/>
+				<input name="do" type="hidden" value="login"/>
+				<input type="submit" value="küld"/>
+			</form>
+			<div class="info"><i class="fa fa-info-circle"></i> Ez az oldal sütiket használ. Az oldal további használatával Ön hozzájárul ezek használatához.</div>
+		{{end}}
+	</body>
+</html>{{end}}

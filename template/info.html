@@ -1,0 +1,24 @@
+{{define "info"}}<div>
+{{if .QueueSize}}
+<p>Jelenleg összesen {{filesize .QueueSize}} FTP-re töltése van folyamatban.</p>
+{{if gt .QueueLoad 80}}
+	<p><i class="fa fa-exclamation-triangle"></i> Ajjaj, ha most töltesz fel, nem biztos, hogy sikerül.</p>
+{{else if gt .QueueLoad 50}}
+	<p><i class="fa fa-info-circle"></i> Elég sok fájl töltődik már fölfele. Inkább később tölts fel.</p>
+{{end}}
+{{end}}
+{{if or .Cachedfiles .Donefiles}}
+<p><b>{{.Name}}</b> névvel korábban feltöltött fájlok:</p>
+<ul class="filelist">
+	{{range .Cachedfiles}}
+	<li class="working">{{.}}</li>
+	{{end}}
+	{{range .Donefiles}}
+	<li class="done">{{.}}</li>
+	{{end}}
+</ul>
+{{else}}
+<p><i class="fa fa-info-circle"></i> <b>{{.Name}}</b> névvel még nem töltöttek fel fájlokat,
+vagy azok már fel lettek dolgozva.</p>
+{{end}}
+</div>{{end}}
