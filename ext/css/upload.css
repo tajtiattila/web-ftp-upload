@@ -49,3 +49,9 @@ div.infobox {
 	font-style: italic;
 	font-size: 80%;
 }
+.fa-info-circle {
+	color: blue;
+}
+.fa-exclamation-triangle {
+	color: red;
+}
