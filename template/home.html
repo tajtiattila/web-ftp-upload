@@ -4,7 +4,7 @@
 		<title>Web-FTP uploader</title>
 		<link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
 		<link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700" rel="stylesheet" type="text/css">
-		{{if .Name}}
+		{{if .Info}}
 		<script src="./ext/js/dropzone.min.js"></script>
 		<link rel="stylesheet" href="./ext/css/dropzone.css"/>
 		{{end}}
@@ -12,7 +12,7 @@
 	</head>
 	<body>
 		<h1>Web-FTP feltöltőcucc</h1>
-		{{if .Name}}
+		{{with .Info}}
 		<p>Üdvözlet, <b>{{.Name}}</b>!</p>
 		<p>Add meg a feltöltendő fájlokat, vagy <a href="login">klikk ide</a>, ha másik nevet adnál meg.</p>
 		<div id="dropzone">

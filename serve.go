@@ -2,13 +2,10 @@ package main
 
 import (
 	"encoding/gob"
-	"html/template"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"sort"
-	"strings"
 	"time"
 )
 
@@ -60,20 +57,14 @@ func (s *WebServer) handleHome(w http.ResponseWriter, req *http.Request) {
 		s.save()
 		return
 	}
-	var sid string
-	if ck, err := req.Cookie("sid"); err == nil {
-		sid = ck.Value
-	}
-	s.showPage(w, tmplHome, s.Sessions[sid])
+	s.showPage(w, req)
 }
 
 func (s *WebServer) handleLogin(w http.ResponseWriter, req *http.Request) {
-	var sid string
 	if ck, err := req.Cookie("sid"); err == nil {
-		sid = ck.Value
+		delete(s.Sessions, ck.Value)
 	}
-	delete(s.Sessions, sid)
-	s.showPage(w, tmplHome, "")
+	s.showPage(w, req)
 }
 
 func (s *WebServer) handleUpload(w http.ResponseWriter, req *http.Request) {
@@ -140,25 +131,18 @@ func (s *WebServer) datafilename() string {
 }
 
 type page struct {
-	Prefix      string
-	Name        string
-	Donefiles   []string
-	Cachedfiles []string
-	QueueSize   int64
-	QueueLoad   int
+	Host   string
+	Prefix string
+	Info   *InfoPage
 }
 
-func (s *WebServer) showPage(w http.ResponseWriter, tmpl *template.Template, user string) {
-	p := &page{Prefix: s.Prefix}
-	if user != "" {
-		p.Name = strings.Title(user)
-		p.Donefiles = uploader.Userfiles(user)
-		sort.Strings(p.Donefiles)
-		p.Cachedfiles = cachedir.Userfiles(user)
-		sort.Strings(p.Cachedfiles)
+func (s *WebServer) showPage(w http.ResponseWriter, req *http.Request) {
+	var sid string
+	if ck, err := req.Cookie("sid"); err == nil {
+		sid = ck.Value
 	}
-	p.QueueSize = cachedir.ByteSize
-	p.QueueLoad = int(p.QueueSize * 100 / (8 * 1024 * 1024 * 1024))
+	user := s.Sessions[sid]
+	p := page{Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
 	err := tmplHome.Execute(w, p)
 	if err != nil {
 		s.log.Println(err)
