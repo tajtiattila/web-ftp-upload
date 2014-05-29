@@ -23,7 +23,7 @@ func check(err error) {
 func main() {
 	addr := flag.String("addr", "", `address to listen on, eg. ":8080"`)
 	sock := flag.String("sock", "", `socket file to listen on`)
-	prefix := flag.String("pfx", "/web-ftp-upload/", `web server path prefix`)
+	prefix := flag.String("pfx", "/web-ftp-upload", `web server path prefix`)
 	ext := flag.String("ext", "ext", `directory for external files`)
 	tmpl := flag.String("tmpl", "template", `directory for templates`)
 	usefcgi := flag.Bool("fcgi", false, `fastcgi mode`)
@@ -60,14 +60,11 @@ func main() {
 	check(err)
 	defer l.Close()
 
-	ws := NewWebServer(*prefix)
-	m := http.NewServeMux()
-	m.Handle(*prefix, ws)
-	m.Handle(*prefix+"ext/", http.StripPrefix(*prefix+"ext/", http.FileServer(http.Dir(*ext))))
+	server := NewWebServer(*prefix, *ext)
 	if *usefcgi {
-		err = fcgi.Serve(l, m)
+		err = fcgi.Serve(l, server)
 	} else {
-		err = http.Serve(l, m)
+		err = http.Serve(l, server)
 	}
 	check(err)
 }

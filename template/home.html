@@ -14,9 +14,9 @@
 		<h1>Web-FTP feltöltőcucc</h1>
 		{{if .Name}}
 		<p>Üdvözlet, <b>{{.Name}}</b>!</p>
-		<p>Add meg a feltöltendő fájlokat, vagy <a href="?login=1">klikk ide</a>, ha másik nevet adnál meg.</p>
+		<p>Add meg a feltöltendő fájlokat, vagy <a href="login">klikk ide</a>, ha másik nevet adnál meg.</p>
 		<div id="dropzone">
-			<form id="upload" action="." class="dropzone">
+			<form id="upload" action="upload" class="dropzone">
 				<input name="do" type="hidden" value="upload">
 			</form>
 		</div>
@@ -24,9 +24,8 @@
 			{{template "info" .}}
 		</div>
 		{{else}}
-			<form method="post" class="name" action=".">
+			<form method="post" class="name" action="home">
 				<i class="fa fa-user"></i> <input name="name" type="text" placeholder="név"/>
-				<input name="do" type="hidden" value="login"/>
 				<input type="submit" value="küld"/>
 			</form>
 			<div class="info"><i class="fa fa-info-circle"></i> Ez az oldal sütiket használ. Az oldal további használatával Ön hozzájárul ezek használatához.</div>
