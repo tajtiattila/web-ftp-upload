@@ -69,7 +69,7 @@ func NewUploader(rawurl string) (*Uploader, error) {
 		Pass:      pass,
 		RemoteDir: url.Path,
 
-		log:    log.New(os.Stderr, "UPLOADR ", log.LstdFlags),
+		log:    log.New(os.Stderr, "FTP     ", log.LstdFlags),
 		queue:  newuploadqueue(nil),
 		chquit: make(chan bool),
 		files:  make(map[string][]string),
