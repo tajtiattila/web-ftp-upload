@@ -20,9 +20,20 @@
 				<input name="do" type="hidden" value="upload">
 			</form>
 		</div>
-		<div id="info">
-			{{template "info" .}}
-		</div>
+		<div id="info">{{template "info" .}}</div>
+		<script type="text/javascript">
+			(function() {
+				var data = document.getElementById("info");
+				var conn = new WebSocket("ws://{{$.Host}}{{$.Prefix}}ws?user={{tolower .Name}}");
+				conn.onclose = function(evt) {
+					data.innerHTML = '<p><i class="fa fa-exclamation-triangle"></i> A kapcsolat megszakadt.</p>';
+				}
+				conn.onmessage = function(evt) {
+					console.log('file updated');
+					data.innerHTML = evt.data;
+				}
+			})();
+        </script>
 		{{else}}
 			<form method="post" class="name" action="home">
 				<i class="fa fa-user"></i> <input name="name" type="text" placeholder="név"/>

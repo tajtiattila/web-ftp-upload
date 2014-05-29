@@ -35,13 +35,14 @@ func NewWebServer(p, ext string) *WebServer {
 	})
 	s.HandleFunc(s.Prefix+"login", s.handleLogin)
 	s.HandleFunc(s.Prefix+"home", s.handleHome)
+	s.HandleFunc(s.Prefix+"ws", websocker.handle)
 	s.HandleFunc(s.Prefix+"upload", s.handleUpload)
 	s.Handle(s.Prefix+"ext/", http.StripPrefix(s.Prefix+"ext/", http.FileServer(http.Dir(ext))))
 	return s
 }
 
 func (s *WebServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	s.log.Println("accessing:", req.URL.String())
+	//s.log.Println("accessing:", req.URL.String())
 	s.ServeMux.ServeHTTP(w, req)
 }
 

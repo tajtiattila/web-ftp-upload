@@ -55,6 +55,7 @@ func (d *CacheDir) Add(user, filename string, r io.Reader) (f CachedFile, err er
 	d.save()
 	d.mtx.Unlock()
 
+	notifier.notify(user)
 	return e, nil
 }
 
@@ -118,6 +119,7 @@ func (d *CacheDir) remove(e *CacheEntry) (err error) {
 		d.log.Println("Remove failed:", err)
 	}
 
+	notifier.notify(e.Un)
 	return
 }
 

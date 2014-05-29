@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"strings"
 )
 
 const (
@@ -23,6 +24,9 @@ var tmplFuncs = template.FuncMap{
 			return fmt.Sprint(n/MultMiB, " MiB")
 		}
 		return fmt.Sprint(n/MultGiB, " GiB")
+	},
+	"tolower": func(s string) string {
+		return strings.ToLower(s)
 	},
 }
 
