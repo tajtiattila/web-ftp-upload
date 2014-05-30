@@ -22,11 +22,10 @@ func check(err error) {
 
 func main() {
 	addr := flag.String("addr", "", `address to listen on, eg. ":8080"`)
-	sock := flag.String("sock", "", `socket file to listen on`)
+	sock := flag.String("fcgi", "", `fastcgi file to listen on`)
 	prefix := flag.String("pfx", "/web-ftp-upload", `web server path prefix`)
 	ext := flag.String("ext", "ext", `directory for external files`)
 	tmpl := flag.String("tmpl", "template", `directory for templates`)
-	usefcgi := flag.Bool("fcgi", false, `fastcgi mode`)
 	flag.Parse()
 
 	if flag.NArg() != 0 {
@@ -51,21 +50,22 @@ func main() {
 		die("can't init uploader", err)
 	}
 
-	var l net.Listener
+	var (
+		listener net.Listener
+		servefn  func(net.Listener, http.Handler) error
+	)
 	if *addr != "" {
-		l, err = net.Listen("tcp", *addr)
+		listener, err = net.Listen("tcp", *addr)
+		servefn = http.Serve
 	} else {
-		l, err = net.Listen("unix", *sock)
+		listener, err = net.Listen("unix", *sock)
+		servefn = fcgi.Serve
 	}
 	check(err)
-	defer l.Close()
+	defer listener.Close()
 
 	server := NewWebServer(*prefix, *ext)
-	if *usefcgi {
-		err = fcgi.Serve(l, server)
-	} else {
-		err = http.Serve(l, server)
-	}
+	servefn(listener, server)
 	check(err)
 }
 
