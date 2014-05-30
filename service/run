@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# service file for daemontools
+
+exec 2>&1
+
+echo 'Starting web-ftp-upload'
+
+# Run uploader on a UNIX socket
+SOCKET=/tmp/web-ftp-uploader.socket
+rm -f $SOCKET
+exec setuidgid www-data envdir ./env ../web-ftp-upload -dir .. -sock $SOCKET
+
+# Or have it listen on a local port
+#exec setuidgid www-data envdir ./env ../web-ftp-upload -dir .. -addr :8576
