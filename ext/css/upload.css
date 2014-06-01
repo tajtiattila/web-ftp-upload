@@ -96,4 +96,8 @@ ul.langsel li {
 	margin: 0.1em;
 	list-style: none;
 }
-
+footer {
+	margin-top: 3em;
+	font-size: 60%;
+	text-align: right;
+}
