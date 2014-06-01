@@ -29,7 +29,7 @@ Sample config.json:
 		"FTPUrl":"ftp://uploader:secret@ftp.example.com/upload"
 	}
 
-The service files for use with daemontools are included.
+The service files for use with daemontools are included in the misc folder.
 
 To use it behind nginx, add the following to your site configuration:
 
