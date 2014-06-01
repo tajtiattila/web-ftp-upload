@@ -11,6 +11,11 @@
 		<link rel="stylesheet" href="./ext/css/upload.css"/>
 	</head>
 	<body>
+		<ul class="langsel">
+			<li><a href="?lang=en">en</a></li>
+			<li><a href="?lang=de">de</a></li>
+			<li><a href="?lang=hu">hu</a></li>
+		</ul>
 		<h1>{{.Title}}</h1>
 		{{if .Info}}{{template "greet" .}}{{end}}
 		{{with .Info}}

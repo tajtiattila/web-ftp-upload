@@ -77,4 +77,17 @@ div.infobox {
 	vertical-align: top;
 	font-size: 180%;
 }
+ul.langsel {
+	display: block;
+	position: absolute;
+	top: 0;
+	right: 0;
+	margin-right: 0.5em;
+	text-align: right;
+}
+ul.langsel li {
+	display: inline;
+	margin: 0.1em;
+	list-style: none;
+}
 

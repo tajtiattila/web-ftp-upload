@@ -1,0 +1,23 @@
+{{define "info"}}<div>
+{{if .QueueSize}}
+<p>Derzeit wird {{filesize .QueueSize}} hochgelagen.</p>
+{{if gt .QueueLoad 80}}
+	<p><i class="fa fa-exclamation-triangle"></i> Wenn Sie hochlagen jetzt, dann wird es wahrscheinlich fehlschlagen.</p>
+{{else if gt .QueueLoad 50}}
+	<p><i class="fa fa-info-circle"></i> Viele Dateien sind schon hochgeladen. Bitte hochladen sie Ihre Dateien später.</p>
+{{end}}
+{{end}}
+{{if or .Cachedfiles .Donefiles}}
+<p>Folgende Dateien waren als <b>{{.Name}}</b> soweit hochgeladen:</p>
+<ul class="filelist">
+	{{range .Cachedfiles}}
+	<li class="working">{{.}}</li>
+	{{end}}
+	{{range .Donefiles}}
+	<li class="done">{{.}}</li>
+	{{end}}
+</ul>
+{{else}}
+<p><i class="fa fa-info-circle"></i>Es gibt noch keine Dateien hochgeladen als <b>{{.Name}}</b>, oder sie sind schon berechnet.</p>
+{{end}}
+</div>{{end}}
