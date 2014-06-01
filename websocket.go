@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -35,7 +36,7 @@ type WebSocker struct {
 	log *log.Logger
 }
 
-func (ws *WebSocker) handle(w http.ResponseWriter, req *http.Request) {
+func (ws *WebSocker) handle(w http.ResponseWriter, req *http.Request, user string, tmpl *template.Template) {
 	conn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
 		if _, ok := err.(websocket.HandshakeError); !ok {
@@ -44,22 +45,19 @@ func (ws *WebSocker) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	user := req.FormValue("user")
-	if user == "" {
-		ws.log.Println("Empty username")
-	}
-
-	go ws.writer(conn, user)
+	go ws.writer(conn, user, tmpl)
 	ws.reader(conn)
 }
 
-func (ws *WebSocker) writer(conn *websocket.Conn, user string) {
+func (ws *WebSocker) writer(conn *websocket.Conn, user string, tmpl *template.Template) {
 	pingTicker := time.NewTicker(pingPeriod)
 	chl, chq := notifier.listen(user)
+	ws.log.Println(user, "connected")
 	defer func() {
 		pingTicker.Stop()
 		conn.Close()
 		close(chq)
+		ws.log.Println(user, "disconnected")
 	}()
 	for {
 		var buf bytes.Buffer
@@ -67,7 +65,7 @@ func (ws *WebSocker) writer(conn *websocket.Conn, user string) {
 		case p := <-chl:
 			conn.SetWriteDeadline(time.Now().Add(writeWait))
 			buf.Reset()
-			if err := tmplInfo.Execute(&buf, p); err != nil {
+			if err := tmpl.Execute(&buf, p); err != nil {
 				ws.log.Println(err)
 				return
 			}

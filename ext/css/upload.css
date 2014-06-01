@@ -55,3 +55,26 @@ div.infobox {
 .fa-exclamation-triangle {
 	color: red;
 }
+.dz-message {
+	display: inline-block;
+	width: 100%;
+	text-align: center;
+	font-style: italic;
+	font-size: 2em;
+	margin-top: 2em;
+	margin-bottom: 2em;
+}
+.dz-message .big {
+	font-size: 120%;
+	font-weight: bold;
+}
+.dz-message .or {
+	font-size: 50%;
+}
+.drop-icon {
+	/* hack for the icon to align with text better */
+	display: inline-block;
+	vertical-align: top;
+	font-size: 180%;
+}
+

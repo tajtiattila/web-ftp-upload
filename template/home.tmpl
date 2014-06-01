@@ -1,22 +1,22 @@
 {{define "home"}}<!DOCTYPE html>
 <html>
 	<head>
-		<title>Web-FTP uploader</title>
+		<title>{{.Title}}</title>
 		<link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
-		<link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700" rel="stylesheet" type="text/css">
+		<link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700,700italic" rel="stylesheet" type="text/css">
 		{{if .Info}}
 		<script src="./ext/js/dropzone.min.js"></script>
-		<link rel="stylesheet" href="./ext/css/dropzone.css"/>
+		<link rel="stylesheet" href="./ext/css/basic.css"/>
 		{{end}}
 		<link rel="stylesheet" href="./ext/css/upload.css"/>
 	</head>
 	<body>
-		<h1>Web-FTP feltöltőcucc</h1>
+		<h1>{{.Title}}</h1>
 		{{with .Info}}
-		<p>Üdvözlet, <b>{{.Name}}</b>!</p>
-		<p>Add meg a feltöltendő fájlokat, vagy <a href="login">klikk ide</a>, ha másik nevet adnál meg.</p>
+		{{template "greet" .}}
 		<div id="dropzone">
 			<form id="upload" action="upload" class="dropzone">
+				<div class="dz-message"><i class="fa fa-arrow-circle-o-right drop-icon"></i> {{template "msgDropFilesOrClick"}}</div>
 				<input name="do" type="hidden" value="upload">
 			</form>
 		</div>
@@ -24,9 +24,9 @@
 		<script type="text/javascript">
 			(function() {
 				var data = document.getElementById("info");
-				var conn = new WebSocket("ws://{{$.Host}}{{$.Prefix}}ws?user={{tolower .Name}}");
+				var conn = new WebSocket("ws://{{$.Host}}{{$.Prefix}}ws?lang={{$.Lang}}");
 				conn.onclose = function(evt) {
-					data.innerHTML = '<p><i class="fa fa-exclamation-triangle"></i> A kapcsolat megszakadt.</p>';
+				data.innerHTML = '<p><i class="fa fa-exclamation-triangle"></i> {{template "msgConnClose"}}</p>';
 				}
 				conn.onmessage = function(evt) {
 					console.log('file updated');
@@ -36,10 +36,10 @@
         </script>
 		{{else}}
 			<form method="post" class="name" action="home">
-				<i class="fa fa-user"></i> <input name="name" type="text" placeholder="név"/>
-				<input type="submit" value="küld"/>
+				<i class="fa fa-user"></i> <input name="name" type="text" placeholder="{{template "msgNamePlaceholder"}}"/>
+				<input type="submit" value="{{template "msgSubmitButton"}}"/>
 			</form>
-			<div class="infobox"><i class="fa fa-info-circle"></i> Ez az oldal sütiket használ. Az oldal további használatával Ön hozzájárul ezek használatához.</div>
+			<div class="infobox"><i class="fa fa-info-circle"></i> {{template "msgCookies"}}</div>
 		{{end}}
 	</body>
 </html>{{end}}

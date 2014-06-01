@@ -37,7 +37,7 @@ func NewWebServer(t, p, ext string) *WebServer {
 	})
 	s.HandleFunc(s.Prefix+"login", s.handleLogin)
 	s.HandleFunc(s.Prefix+"home", s.handleHome)
-	s.HandleFunc(s.Prefix+"ws", websocker.handle)
+	s.HandleFunc(s.Prefix+"ws", s.handleSocket)
 	s.HandleFunc(s.Prefix+"upload", s.handleUpload)
 	s.Handle(s.Prefix+"ext/", http.StripPrefix(s.Prefix+"ext/", http.FileServer(http.Dir(ext))))
 	return s
@@ -98,6 +98,21 @@ func (s *WebServer) handleUpload(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (s *WebServer) handleSocket(w http.ResponseWriter, req *http.Request) {
+	var user string
+	if ck, err := req.Cookie("sid"); err == nil {
+		user = s.Sessions[ck.Value]
+	}
+	if user != "" {
+		websocker.handle(w, req, user, selecttemplate(req).Info)
+	}
+}
+
+func selecttemplate(req *http.Request) *tmpl {
+	l := Selectlang(req, "lang", languages)
+	return langtmpl[l]
+}
+
 func (s *WebServer) load() {
 	f, err := os.Open(s.datafilename())
 	switch {
@@ -135,6 +150,7 @@ func (s *WebServer) datafilename() string {
 
 type page struct {
 	Title  string
+	Lang   string
 	Host   string
 	Prefix string
 	Info   *InfoPage
@@ -146,8 +162,8 @@ func (s *WebServer) showPage(w http.ResponseWriter, req *http.Request) {
 		sid = ck.Value
 	}
 	user := s.Sessions[sid]
-	p := page{Title: s.Title, Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
-	err := tmplHome.Execute(w, p)
+	p := page{Title: s.Title, Lang: req.FormValue("lang"), Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
+	err := selecttemplate(req).Home.Execute(w, p)
 	if err != nil {
 		s.log.Println(err)
 	}

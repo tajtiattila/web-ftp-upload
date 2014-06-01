@@ -1,10 +1,10 @@
 {{define "info"}}<div>
 {{if .QueueSize}}
-<p>Jelenleg összesen {{filesize .QueueSize}} FTP-re töltése van folyamatban.</p>
+<p>Jelenleg összesen {{filesize .QueueSize}} feltöltése van folyamatban.</p>
 {{if gt .QueueLoad 80}}
-	<p><i class="fa fa-exclamation-triangle"></i> Ajjaj, ha most töltesz fel, nem biztos, hogy sikerül.</p>
+	<p><i class="fa fa-exclamation-triangle"></i> Ha most tölt fel, nem biztos, hogy sikerül.</p>
 {{else if gt .QueueLoad 50}}
-	<p><i class="fa fa-info-circle"></i> Elég sok fájl töltődik már fölfele. Inkább később tölts fel.</p>
+	<p><i class="fa fa-info-circle"></i> Elég sok fájl töltődik már fölfele. Inkább később töltsön fel.</p>
 {{end}}
 {{end}}
 {{if or .Cachedfiles .Donefiles}}
