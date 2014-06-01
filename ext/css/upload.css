@@ -2,9 +2,9 @@ body {
 	font-family: 'Open Sans', sans-serif;
 }
 ul.filelist {
-	column-width: 30em;
-	-moz-column-width: 30em;
-	-webkit-column-width: 30em;
+	column-width: 15em;
+	-moz-column-width: 15em;
+	-webkit-column-width: 15em;
 }
 ul.filelist > li {
 	padding-left: 1.5em; /*same as margin-left and width in :before */
@@ -31,9 +31,9 @@ ul.filelist > li.working:before {
 h1 {
 	text-align: center;
 }
-form.name {
+form.login {
 	margin: 0 auto;
-	width: 250px;
+	width: 20em;
 }
 div.info {
 	display: block;
@@ -55,14 +55,17 @@ div.infobox {
 .fa-exclamation-triangle {
 	color: red;
 }
+.dropzone {
+	min-height: 360px;
+}
 .dz-message {
 	display: inline-block;
 	width: 100%;
 	text-align: center;
 	font-style: italic;
 	font-size: 2em;
-	margin-top: 2em;
-	margin-bottom: 2em;
+	margin-top: 3em;
+	margin-bottom: 3em;
 }
 .dz-message .big {
 	font-size: 120%;
