@@ -1,5 +1,5 @@
-{{define "greet"}}<p>Üdvözlet, <b>{{.Name}}</b>!</p>
-<p>Adja meg a feltöltendő fájlokat, vagy <a href="login">klikk ide</a>, ha másik nevet adna meg.</p>{{end}}
+{{define "greet"}}<p>Üdvözlet, <b>{{.Info.Name}}</b>!</p>
+<p>Adja meg a feltöltendő fájlokat, vagy <a href="login{{.Query}}">klikk ide</a>, ha másik nevet adna meg.</p>{{end}}
 {{define "msgCookies"}}Ez az oldal sütiket használ.
 Az oldal további használatával Ön hozzájárul ezek használatához.{{end}}
 {{define "msgDropFilesOrClick"}}<span class="big">Dobjon ide fájlokat</span> a feltöltéshez<br/><span class="or">(vagy klikk)</span>{{end}}

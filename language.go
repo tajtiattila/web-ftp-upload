@@ -6,18 +6,21 @@ import (
 	"strconv"
 )
 
-func Selectlang(req *http.Request, formvalname string, avail []string) string {
+type Language string
+
+func Selectlang(req *http.Request, formvalname string, avail []Language) Language {
 	if len(avail) == 0 {
 		panic("no language available")
 	}
 	if req != nil {
 		if l := req.FormValue(formvalname); l != "" {
-			if has(avail, l) {
-				return l
+			if has(avail, Language(l)) {
+				return Language(l)
 			}
+			return avail[0]
 		}
 		for _, al := range parseAcceptLang(req.Header["Accept-Language"]) {
-			if l, ok := matchlang(avail, al); ok {
+			if l, ok := matchlang(avail, Language(al)); ok {
 				return l
 			}
 		}
@@ -25,7 +28,7 @@ func Selectlang(req *http.Request, formvalname string, avail []string) string {
 	return avail[0]
 }
 
-func has(list []string, s string) bool {
+func has(list []Language, s Language) bool {
 	for _, e := range list {
 		if e == s {
 			return true
@@ -34,7 +37,7 @@ func has(list []string, s string) bool {
 	return false
 }
 
-func matchlang(list []string, s string) (string, bool) {
+func matchlang(list []Language, s Language) (Language, bool) {
 	for _, l := range list {
 		if l == s {
 			return l, true

@@ -45,7 +45,7 @@ func main() {
 		die(err)
 	}
 
-	err = readtemplates(*wdir + "/template")
+	err = readtemplates(*wdir+"/template", config.Title)
 	if err != nil {
 		die(err)
 	}
@@ -64,7 +64,7 @@ func main() {
 	check(err)
 	defer listener.Close()
 
-	server := NewWebServer(config.Title, *prefix, *wdir+"/ext")
+	server := NewWebServer(*prefix, *wdir+"/ext")
 	http.Serve(listener, server)
 	check(err)
 }
@@ -93,7 +93,7 @@ func inituploader(url string) (err error) {
 }
 
 type config struct {
-	Title  string
+	Title  map[Language]string
 	FTPUrl string
 }
 
@@ -107,9 +107,6 @@ func readconfig(fn string) (*config, error) {
 	err = json.NewDecoder(f).Decode(c)
 	if err != nil {
 		return nil, err
-	}
-	if c.Title == "" {
-		c.Title = "Uploader"
 	}
 	return c, err
 }

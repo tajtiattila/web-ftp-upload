@@ -1,5 +1,5 @@
-{{define "greet"}}<p>Welcome, <b>{{.Name}}</b>!</p>
-<p>Specify the files to be uploaded, or <a href="login">click here</a>, if you would like to enter another name.</p>{{end}}
+{{define "greet"}}<p>Welcome, <b>{{.Info.Name}}</b>!</p>
+<p>Specify the files to be uploaded, or <a href="login{{$.Query}}">click here</a>, if you would like to enter another name.</p>{{end}}
 {{define "msgCookies"}}This website uses cookies.
 By continuing to use our website, you are agreeing to our use of cookies.{{end}}
 {{define "msgDropFilesOrClick"}}<span class="big">Drop files</span> to upload<br/><span class="or">(or click)</span>{{end}}

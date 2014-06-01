@@ -12,8 +12,8 @@
 	</head>
 	<body>
 		<h1>{{.Title}}</h1>
+		{{if .Info}}{{template "greet" .}}{{end}}
 		{{with .Info}}
-		{{template "greet" .}}
 		<div id="dropzone">
 			<form id="upload" action="upload" class="dropzone">
 				<div class="dz-message"><i class="fa fa-arrow-circle-o-right drop-icon"></i> {{template "msgDropFilesOrClick"}}</div>
@@ -24,7 +24,7 @@
 		<script type="text/javascript">
 			(function() {
 				var data = document.getElementById("info");
-				var conn = new WebSocket("ws://{{$.Host}}{{$.Prefix}}ws?lang={{$.Lang}}");
+				var conn = new WebSocket("ws://{{$.Host}}{{$.Prefix}}ws{{$.Query}}");
 				conn.onclose = function(evt) {
 				data.innerHTML = '<p><i class="fa fa-exclamation-triangle"></i> {{template "msgConnClose"}}</p>';
 				}
@@ -35,7 +35,7 @@
 			})();
         </script>
 		{{else}}
-			<form method="post" class="name" action="home">
+			<form method="post" class="login" action="home{{.Query}}">
 				<i class="fa fa-user"></i> <input name="name" type="text" placeholder="{{template "msgNamePlaceholder"}}"/>
 				<input type="submit" value="{{template "msgSubmitButton"}}"/>
 			</form>

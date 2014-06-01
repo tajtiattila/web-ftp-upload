@@ -32,16 +32,17 @@ var tmplFuncs = template.FuncMap{
 }
 
 type tmpl struct {
-	Home *template.Template
-	Info *template.Template
+	Title string
+	Home  *template.Template
+	Info  *template.Template
 }
 
-const defaultlang = "en"
+const defaultlang = Language("en")
 
 var (
-	langtmpl    = make(map[string]*tmpl)
+	langtmpl    = make(map[Language]*tmpl)
 	defaulttmpl *tmpl
-	languages   []string
+	languages   []Language
 )
 
 /*
@@ -57,7 +58,7 @@ func templates(lang string) *tmpl {
 }
 */
 
-func readtemplates(dir string) (err error) {
+func readtemplates(dir string, titles map[Language]string) (err error) {
 	var templates *template.Template
 	templates, err = template.New("base").Funcs(tmplFuncs).ParseGlob(dir + "/*.tmpl")
 	if err != nil {
@@ -93,16 +94,25 @@ func readtemplates(dir string) (err error) {
 			if ti == nil {
 				return fmt.Errorf(`Template "info" is missing in %s`, subdir)
 			}
-			langtmpl[fi.Name()] = &tmpl{th, ti}
+			title, ok := "", false
+			if title, ok = titles[Language(fi.Name())]; !ok {
+				if title, ok = titles[defaultlang]; !ok {
+					title = "Uploader"
+				}
+			}
+			langtmpl[Language(fi.Name())] = &tmpl{title, th, ti}
 		}
 	}
 	defaulttmpl = langtmpl[defaultlang]
 	if defaulttmpl == nil {
-		fmt.Errorf("missing " + defaultlang + " template")
+		fmt.Errorf("missing " + string(defaultlang) + " template")
 	}
-	languages = make([]string, 0, len(langtmpl))
+	languages = make([]Language, 0, len(langtmpl))
+	languages = append(languages, defaultlang)
 	for k := range langtmpl {
-		languages = append(languages, k)
+		if k != defaultlang {
+			languages = append(languages, k)
+		}
 	}
 	return
 }

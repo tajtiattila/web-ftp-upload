@@ -11,16 +11,14 @@ import (
 
 type WebServer struct {
 	*http.ServeMux
-	Title    string
 	Prefix   string
 	Sessions map[string]string
 	log      *log.Logger
 }
 
-func NewWebServer(t, p, ext string) *WebServer {
+func NewWebServer(p, ext string) *WebServer {
 	s := &WebServer{
 		ServeMux: http.NewServeMux(),
-		Title:    t,
 		Prefix:   p,
 		Sessions: make(map[string]string),
 		log:      log.New(os.Stderr, "WWW     ", log.LstdFlags),
@@ -54,9 +52,13 @@ func (s *WebServer) handleHome(w http.ResponseWriter, req *http.Request) {
 		sid := gensid()
 		http.SetCookie(w, &http.Cookie{Name: "sid", Value: sid})
 		s.Sessions[sid] = user
+		t := "home"
+		if lang := req.URL.Query().Get("lang"); lang != "" {
+			t += "?lang=" + lang
+		}
 		// clear query from URL (req.Method == "GET") and make reload
 		// possible without "confirm form resubmission" (req.Method == "POST")
-		http.Redirect(w, req, "home", http.StatusMovedPermanently)
+		http.Redirect(w, req, t, http.StatusMovedPermanently)
 		s.save()
 		return
 	}
@@ -150,7 +152,7 @@ func (s *WebServer) datafilename() string {
 
 type page struct {
 	Title  string
-	Lang   string
+	Query  string
 	Host   string
 	Prefix string
 	Info   *InfoPage
@@ -162,8 +164,14 @@ func (s *WebServer) showPage(w http.ResponseWriter, req *http.Request) {
 		sid = ck.Value
 	}
 	user := s.Sessions[sid]
-	p := page{Title: s.Title, Lang: req.FormValue("lang"), Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
-	err := selecttemplate(req).Home.Execute(w, p)
+	lang := req.FormValue("lang")
+	query := ""
+	if lang != "" {
+		query = "?lang=" + lang
+	}
+	t := selecttemplate(req)
+	p := page{Title: t.Title, Query: query, Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
+	err := t.Home.Execute(w, p)
 	if err != nil {
 		s.log.Println(err)
 	}
