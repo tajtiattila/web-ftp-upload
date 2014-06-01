@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -24,6 +25,7 @@ func main() {
 	sock := flag.String("sock", "", `file to listen on`)
 	prefix := flag.String("pfx", "/web-ftp-upload", `web server path prefix`)
 	wdir := flag.String("dir", ".", `directory for template and external files`)
+	cfg := flag.String("cfg", "config.json", `config file`)
 	flag.Parse()
 
 	if flag.NArg() != 0 {
@@ -38,12 +40,17 @@ func main() {
 		die("either -sock or -addr necessary")
 	}
 
-	err := readtemplates(*wdir + "/template")
+	config, err := readconfig(*cfg)
 	if err != nil {
 		die(err)
 	}
 
-	err = inituploader(FTP_URL)
+	err = readtemplates(*wdir + "/template")
+	if err != nil {
+		die(err)
+	}
+
+	err = inituploader(config.FTPUrl)
 	if err != nil {
 		die("can't init uploader", err)
 	}
@@ -57,7 +64,7 @@ func main() {
 	check(err)
 	defer listener.Close()
 
-	server := NewWebServer(*prefix, *wdir+"/ext")
+	server := NewWebServer(config.Title, *prefix, *wdir+"/ext")
 	http.Serve(listener, server)
 	check(err)
 }
@@ -83,4 +90,26 @@ func inituploader(url string) (err error) {
 		}
 	}
 	return
+}
+
+type config struct {
+	Title  string
+	FTPUrl string
+}
+
+func readconfig(fn string) (*config, error) {
+	f, err := os.Open(fn)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	c := new(config)
+	err = json.NewDecoder(f).Decode(c)
+	if err != nil {
+		return nil, err
+	}
+	if c.Title == "" {
+		c.Title = "Uploader"
+	}
+	return c, err
 }

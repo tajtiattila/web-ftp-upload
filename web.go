@@ -11,14 +11,16 @@ import (
 
 type WebServer struct {
 	*http.ServeMux
+	Title    string
 	Prefix   string
 	Sessions map[string]string
 	log      *log.Logger
 }
 
-func NewWebServer(p, ext string) *WebServer {
+func NewWebServer(t, p, ext string) *WebServer {
 	s := &WebServer{
 		ServeMux: http.NewServeMux(),
+		Title:    t,
 		Prefix:   p,
 		Sessions: make(map[string]string),
 		log:      log.New(os.Stderr, "WWW     ", log.LstdFlags),
@@ -132,6 +134,7 @@ func (s *WebServer) datafilename() string {
 }
 
 type page struct {
+	Title  string
 	Host   string
 	Prefix string
 	Info   *InfoPage
@@ -143,7 +146,7 @@ func (s *WebServer) showPage(w http.ResponseWriter, req *http.Request) {
 		sid = ck.Value
 	}
 	user := s.Sessions[sid]
-	p := page{Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
+	p := page{Title: s.Title, Host: req.Host, Prefix: s.Prefix, Info: NewInfoPage(user)}
 	err := tmplHome.Execute(w, p)
 	if err != nil {
 		s.log.Println(err)
