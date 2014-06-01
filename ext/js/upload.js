@@ -1,25 +1,43 @@
 function websocket(config) {
 	var elstat = config.elementStatus;
 	var elinfo = config.elementInfo;
-	var conn = new WebSocket(config.url);
 	var reconnectDelay = 1000;
 	if ('reconnectDelay' in config) {
 		reconnectDelay = config.reconnectDelay;
 	}
-	conn.onclose = function(evt) {
-		elstat.innerHTML = config.msgClose;
-		addClass(elinfo, "xconn");
-		window.setTimeout(websocket(config), reconnectDelay);
+	var errorReportDelay = 5000;
+	if ('errorReportDelay' in config) {
+		errorReportDelay = config.errorReportDelay;
 	}
-	conn.onopen = function(evt) {
-		elstat.innerHTML = "";
-		console.log('websocket connected');
-		removeClass(elinfo, "xconn");
+	var connected = false;
+	var conn;
+	function connect() {
+		conn = new WebSocket(config.url);
+		conn.onopen = function(evt) {
+			console.log('websocket connected');
+			connected = true;
+			elstat.innerHTML = "";
+			removeClass(elinfo, "xconn");
+		}
+		conn.onclose = function(evt) {
+			console.log('websocket disconnected');
+			connected = false;
+			setTimeout(function(){
+				connect();
+			}, reconnectDelay);
+			setTimeout(function(){
+				if (!connected) {
+					elstat.innerHTML = config.msgClose;
+					addClass(elinfo, "xconn");
+				}
+			}, errorReportDelay);
+		}
+		conn.onmessage = function(evt) {
+			console.log('websocket updated');
+			elinfo.innerHTML = evt.data;
+		}
 	}
-	conn.onmessage = function(evt) {
-		console.log('websocket updated');
-		elinfo.innerHTML = evt.data;
-	}
+	connect();
 }
 function addClass(el, cls) {
 	if (el.className == "") {
