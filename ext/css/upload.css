@@ -38,6 +38,9 @@ form.login {
 div.info {
 	display: block;
 }
+.xconn {
+	color: #ccc;
+}
 div.infobox {
 	border: 1px solid #aaa;
 	border-radius: 1em;

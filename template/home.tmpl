@@ -6,6 +6,7 @@
 		<link href="http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700,700italic" rel="stylesheet" type="text/css">
 		{{if .Info}}
 		<script src="./ext/js/dropzone.min.js"></script>
+		<script src="./ext/js/upload.js"></script>
 		<link rel="stylesheet" href="./ext/css/basic.css"/>
 		{{end}}
 		<link rel="stylesheet" href="./ext/css/upload.css"/>
@@ -25,18 +26,16 @@
 				<input name="do" type="hidden" value="upload">
 			</form>
 		</div>
-		<div id="info">{{template "info" .}}</div>
+		<div id="status"></div>
+		<div id="info" class="xconn">{{template "info" .}}</div>
 		<script type="text/javascript">
 			(function() {
-				var data = document.getElementById("info");
-				var conn = new WebSocket("ws://{{$.Host}}{{$.Prefix}}ws{{$.Query}}");
-				conn.onclose = function(evt) {
-				data.innerHTML = '<p><i class="fa fa-exclamation-triangle"></i> {{template "msgConnClose"}}</p>';
-				}
-				conn.onmessage = function(evt) {
-					console.log('file updated');
-					data.innerHTML = evt.data;
-				}
+				websocket({
+					url: "ws://{{$.Host}}{{$.Prefix}}ws{{$.Query}}",
+					elementStatus: document.getElementById("status"),
+					elementInfo: document.getElementById("info"),
+					msgClose: '<p><i class="fa fa-exclamation-triangle"></i> {{template "msgConnClose"}}</p>'
+				});
 			})();
         </script>
 		{{else}}
