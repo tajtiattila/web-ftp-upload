@@ -10,7 +10,7 @@ import (
 )
 
 func die(v ...interface{}) {
-	fmt.Fprint(os.Stderr, v...)
+	fmt.Fprintln(os.Stderr, v...)
 	os.Exit(1)
 }
 
@@ -50,7 +50,12 @@ func main() {
 		die(err)
 	}
 
-	err = inituploader(config.FTPUrl)
+	maxcachesize, err := parsebytesize(config.MaxCacheSize)
+	if err != nil {
+		die("config.MaxCacheSize:", err)
+	}
+
+	err = inituploader(config.FTPUrl, maxcachesize)
 	if err != nil {
 		die("can't init uploader", err)
 	}
@@ -74,8 +79,8 @@ var (
 	cachedir *CacheDir
 )
 
-func inituploader(url string) (err error) {
-	cachedir, err = OpenCacheDir("")
+func inituploader(url string, siz int64) (err error) {
+	cachedir, err = OpenCacheDir("", siz)
 	if err != nil {
 		return
 	}
@@ -92,9 +97,83 @@ func inituploader(url string) (err error) {
 	return
 }
 
+func parsebytesize(s string) (int64, error) {
+	var value int64
+	// 0 start
+	// 1 number
+	// 2 after number
+	// 3 had suffix char (state-2)
+	state, power, mult := 0, 0, 1000
+	for _, ch := range s {
+		switch ch {
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			if state == 0 {
+				state++
+			}
+			if state != 1 {
+				return 0, invalidsize(s)
+			}
+			value = value*10 + int64(ch-'0')
+		case ' ':
+			if state == 1 {
+				state++
+			}
+		case 't', 'g', 'm', 'k', 'T', 'G', 'M', 'K':
+			if state == 0 || state > 2 {
+				return 0, invalidsize(s)
+			}
+			switch ch {
+			case 't', 'T':
+				power = 4
+			case 'g', 'G':
+				power = 3
+			case 'm', 'M':
+				power = 2
+			case 'k', 'K':
+				power = 1
+			}
+			state = 3
+		case 'i':
+			if state != 3 {
+				return 0, invalidsize(s)
+			}
+			mult = 1024
+			state = 4
+		case 'b', 'B':
+			if state > 4 {
+				return 0, invalidsize(s)
+			}
+			state = 5
+		default:
+			return 0, invalidsize(s)
+		}
+	}
+	if state == 0 {
+		return 0, invalidsize(s)
+	}
+	for power > 0 {
+		value *= int64(mult)
+		power--
+	}
+	return value, nil
+}
+
+func invalidsize(s string) error {
+	return fmt.Errorf("invalid size %s", s)
+}
+
+type ByteSize int64
+
+func (b *ByteSize) UnmarshalJSON(p []byte) error {
+	fmt.Println(string(p))
+	*b = 8192 * 1024 * 1024
+	return nil
+}
+
 type config struct {
-	Title  map[Language]string
-	FTPUrl string
+	MaxCacheSize string
+	Title        map[Language]string
+	FTPUrl       string
 }
 
 func readconfig(fn string) (*config, error) {

@@ -23,7 +23,7 @@ func NewInfoPage(user string) *InfoPage {
 	sort.Strings(p.Donefiles)
 	p.Cachedfiles = cachedir.Userfiles(user)
 	sort.Strings(p.Donefiles)
-	p.QueueSize = cachedir.ByteSize
-	p.QueueLoad = int(p.QueueSize * 100 / (8 * 1024 * 1024 * 1024))
+	p.QueueSize = cachedir.Size()
+	p.QueueLoad = int(p.QueueSize * 100 / cachedir.MaxSize)
 	return p
 }

@@ -1,3 +1,6 @@
+Dropzone.options.upload = {
+	maxFilesize: 2048 // megabytes
+};
 function websocket(config) {
 	var elstat = config.elementStatus;
 	var elinfo = config.elementInfo;

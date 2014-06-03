@@ -13,27 +13,28 @@ import (
 
 // CacheDir is a directory holding temporary/cached files.
 type CacheDir struct {
-	Path     string
-	ByteSize int64
-	elems    map[*CacheEntry]bool
-	velems   []*CacheEntry
-	log      *log.Logger
-	mtx      sync.RWMutex
+	Path    string `json:"-"`
+	MaxSize int64  `json:"-"`
+	size    int64  `json:"-"`
+	Entries []*CacheEntry
+	scratch []*CacheEntry
+	log     *log.Logger
+	mtx     sync.RWMutex
 }
 
 // OpenCacheDir opens or creates a cache directory, and
 // loads already cached content, if available.
-func OpenCacheDir(name string) (*CacheDir, error) {
+func OpenCacheDir(name string, maxsiz int64) (*CacheDir, error) {
 	p, err := GetCacheDir(name)
 	if err != nil {
 		return nil, err
 	}
 	d := &CacheDir{
-		Path:  p,
-		elems: make(map[*CacheEntry]bool),
-		log:   log.New(os.Stderr, "CACHE   ", log.LstdFlags),
+		Path:    p,
+		MaxSize: maxsiz,
+		log:     log.New(os.Stderr, "CACHE   ", log.LstdFlags),
 	}
-	d.log.Println("initializing in", d.Path)
+	d.log.Println("initializing in", d.Path, "with limit", d.MaxSize)
 	if err = d.load(); err != nil {
 		return nil, err
 	}
@@ -48,9 +49,9 @@ func (d *CacheDir) Add(user, filename string, r io.Reader) (f CachedFile, err er
 	}
 
 	d.mtx.Lock()
-	d.ByteSize += siz
+	// d.size is already increased in cachecontent/LimitWriter
 	e := &CacheEntry{d, user, filename, cachedname, siz}
-	d.elems[e] = true
+	d.Entries = append(d.Entries, e)
 	d.log.Println("Added", e.Fn, "for", e.Un, "as", filepath.Base(e.Cn))
 	d.save()
 	d.mtx.Unlock()
@@ -64,7 +65,7 @@ func (d *CacheDir) Add(user, filename string, r io.Reader) (f CachedFile, err er
 func (d *CacheDir) Files() <-chan CachedFile {
 	ch := make(chan CachedFile)
 	go func() {
-		for e := range d.elems {
+		for _, e := range d.Entries {
 			ch <- e
 		}
 		close(ch)
@@ -77,12 +78,18 @@ func (d *CacheDir) Userfiles(user string) (r []string) {
 	user = strings.ToLower(user)
 	d.mtx.RLock()
 	defer d.mtx.RUnlock()
-	for e := range d.elems {
+	for _, e := range d.Entries {
 		if strings.ToLower(e.Un) == user {
 			r = append(r, e.Fn)
 		}
 	}
 	return
+}
+
+func (d *CacheDir) Size() int64 {
+	d.mtx.RLock()
+	defer d.mtx.RUnlock()
+	return d.size
 }
 
 func (d *CacheDir) cachecontent(r io.Reader) (cachedname string, siz int64, err error) {
@@ -91,13 +98,17 @@ func (d *CacheDir) cachecontent(r io.Reader) (cachedname string, siz int64, err 
 		return
 	}
 	cachedname = f.Name()
+	w := NewLimitWriter(f, d)
 	defer func() {
 		f.Close()
+		w.Finish()
 		if err != nil {
-			os.Remove(cachedname)
+			if os.Remove(cachedname) == nil {
+				w.Free()
+			}
 		}
 	}()
-	siz, err = io.Copy(f, r)
+	siz, err = io.Copy(w, r)
 	return
 }
 
@@ -105,22 +116,65 @@ func (d *CacheDir) open(e *CacheEntry) (io.ReadCloser, error) {
 	return os.Open(e.Cn)
 }
 
-func (d *CacheDir) remove(e *CacheEntry) (err error) {
-	err = os.Remove(e.Cn)
+func (d *CacheDir) remove(old *CacheEntry) (err error) {
+	err = os.Remove(old.Cn)
 
 	d.mtx.Lock()
-	d.ByteSize -= e.Siz
-	delete(d.elems, e)
+	d.size -= old.Siz
+	d.filterentries(func(e *CacheEntry) bool {
+		return e != old
+	})
 	d.save()
 	d.mtx.Unlock()
 
-	d.log.Println("Removed", e.Fn, "for", e.Un, "as", filepath.Base(e.Cn))
+	d.log.Println("Removed", old.Fn, "for", old.Un, "as", filepath.Base(old.Cn))
 	if err != nil {
 		d.log.Println("Remove failed:", err)
 	}
 
-	notifier.notify(e.Un)
+	notifier.notify(old.Un)
 	return
+}
+
+func (d *CacheDir) clearoldfiles() error {
+	dir, err := os.Open(d.Path)
+	if err != nil {
+		return err
+	}
+	nold, nclear := 0, 0
+	names, err := dir.Readdirnames(0)
+	if err != nil {
+		return err
+	}
+	for _, fn := range names {
+		if len(fn) < 6 || fn[:6] != "cache-" {
+			continue
+		}
+		old := true
+		for _, e := range d.Entries {
+			if fn == filepath.Base(e.Cn) {
+				old = false
+				break
+			}
+		}
+		if old {
+			nold++
+			errx := os.Remove(filepath.Join(d.Path, fn))
+			if err == nil {
+				err = errx
+			} else {
+				nclear++
+			}
+		}
+	}
+	if nold != 0 {
+		if nclear == nold {
+			d.log.Println(nold, "incomplete/invalid files were cleared")
+		} else {
+			d.log.Println(nold, "incomplete/invalid files found, of which", nclear, "could be cleared")
+		}
+	}
+	return err
 }
 
 func (d *CacheDir) load() error {
@@ -128,7 +182,7 @@ func (d *CacheDir) load() error {
 	switch {
 	case err == nil:
 		defer f.Close()
-		err = json.NewDecoder(f).Decode(&d.velems)
+		err = json.NewDecoder(f).Decode(&d)
 	case os.IsNotExist(err):
 		err = nil
 	}
@@ -136,38 +190,30 @@ func (d *CacheDir) load() error {
 		d.log.Println("Load error:", err)
 		return err
 	}
-	d.ByteSize = 0
-	d.elems = make(map[*CacheEntry]bool)
-	if len(d.velems) == 0 {
-		return err
-	}
-	for _, e := range d.velems {
+	d.filterentries(func(e *CacheEntry) bool {
+		// keep only existing files
+		_, xerr := os.Stat(e.Cn)
+		return xerr == nil
+	})
+	d.size = 0
+	for _, e := range d.Entries {
 		e.dir = d
-		if _, xerr := os.Stat(e.Cn); xerr == nil {
-			// add only existing files
-			d.ByteSize += e.Siz
-			d.elems[e] = true
-		}
+		d.size += e.Siz
 	}
-	d.log.Println("Loaded cache of", d.ByteSize, "bytes in", len(d.elems), "files")
+	d.log.Println("Loaded cache of", d.size, "bytes in", len(d.Entries), "files")
+	if errc := d.clearoldfiles(); errc != nil {
+		d.log.Println("error clearing old files:", errc)
+	}
 	return err
 }
 
 func (d *CacheDir) save() {
-	if len(d.elems) == 0 {
+	if len(d.Entries) == 0 {
 		err := os.Remove(d.datafilename())
 		if err != nil {
 			d.log.Println("Can't cleanup:", err)
 		}
 		return
-	}
-	if cap(d.velems) < len(d.elems) {
-		d.velems = make([]*CacheEntry, 0, 2*len(d.elems))
-	} else {
-		d.velems = d.velems[:0]
-	}
-	for e := range d.elems {
-		d.velems = append(d.velems, e)
 	}
 	f, err := SafeFileWriter(d.datafilename())
 	if err == nil {
@@ -177,15 +223,42 @@ func (d *CacheDir) save() {
 				d.log.Println("Can't close:", err)
 			}
 		}()
-		err = json.NewEncoder(f).Encode(d.velems)
+		err = json.NewEncoder(f).Encode(d)
 	}
 	if err != nil {
 		d.log.Println("Can't save:", err)
 	}
 }
 
+func (d *CacheDir) filterentries(f func(e *CacheEntry) bool) {
+	d.scratch = d.scratch[:0]
+	for _, e := range d.Entries {
+		if f(e) {
+			d.scratch = append(d.scratch, e)
+		}
+	}
+	d.Entries, d.scratch = d.scratch, d.Entries
+}
+
 func (d *CacheDir) datafilename() string {
 	return d.Path + "/cachefiles.json"
+}
+
+func (d *CacheDir) AllocBytes(n int) bool {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	if d.size+int64(n) <= d.MaxSize {
+		d.size += int64(n)
+		return true
+	}
+	d.log.Println("buffer full: couldn't allocate", n, "bytes")
+	return false
+}
+
+func (d *CacheDir) FreeBytes(n int) {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+	d.size -= int64(n)
 }
 
 type CachedFile interface {
