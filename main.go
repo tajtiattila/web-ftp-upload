@@ -22,10 +22,10 @@ func check(err error) {
 
 func main() {
 	addr := flag.String("addr", "", `address to listen on, eg. ":8080"`)
-	sock := flag.String("sock", "", `file to listen on`)
-	prefix := flag.String("pfx", "/web-ftp-upload", `web server path prefix`)
-	wdir := flag.String("dir", ".", `directory for template and external files`)
-	cfg := flag.String("cfg", "config.json", `config file`)
+	sock := flag.String("socket", "", `file (unix socket) to listen on`)
+	prefix := flag.String("prefix", "/web-ftp-upload", `web server path prefix`)
+	wdir := flag.String("share", ".", `directory for data (template and external) files`)
+	cfg := flag.String("config", "config.json", `config file`)
 	flag.Parse()
 
 	if flag.NArg() != 0 {

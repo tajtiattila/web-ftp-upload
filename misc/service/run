@@ -9,7 +9,7 @@ echo 'Starting web-ftp-upload'
 # Run uploader on a UNIX socket
 SOCKET=/tmp/web-ftp-uploader.socket
 rm -f $SOCKET
-exec setuidgid www-data envdir ./env ../web-ftp-upload -dir .. -sock $SOCKET
+exec setuidgid www-data envdir ./env ../web-ftp-upload -share .. -socket $SOCKET
 
 # Or have it listen on a local port
-#exec setuidgid www-data envdir ./env ../web-ftp-upload -dir .. -addr :8576
+#exec setuidgid www-data envdir ./env ../web-ftp-upload -share .. -addr :8576
