@@ -20,6 +20,9 @@
 		<h1>{{.Title}}</h1>
 		{{if .Info}}{{template "greet" .}}{{end}}
 		{{with .Info}}
+		<div id="browser" class="hidden">
+			<p><i class="fa fa-info-circle"></i> {{template "msgBrowserCompleted"}}</p>
+		</div>
 		<div id="dropzone">
 			<form id="upload" action="upload" class="dropzone">
 				<div class="dz-message"><i class="fa fa-arrow-circle-o-right drop-icon"></i> {{template "msgDropFilesOrClick"}}</div>

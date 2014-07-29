@@ -1,6 +1,22 @@
 Dropzone.options.upload = {
-	maxFilesize: 2048 // megabytes
+	maxFilesize: 2048, // megabytes
+	init: function() {
+		this.on("addedfile", function(file) {
+			uploadFinished(false);
+		});
+		this.on("queuecomplete", function(file) {
+			uploadFinished(true);
+		});
+	}
 };
+function uploadFinished(finished) {
+	var el = document.getElementById("browser");
+	if (finished) {
+		removeClass(el, "hidden");
+	} else {
+		addClass(el, "hidden");
+	}
+}
 function websocket(config) {
 	var elstat = config.elementStatus;
 	var elinfo = config.elementInfo;

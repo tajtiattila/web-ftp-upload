@@ -41,6 +41,9 @@ div.info {
 .xconn {
 	color: #ccc;
 }
+div.hidden {
+	display: none;
+}
 div.infobox {
 	border: 1px solid #aaa;
 	border-radius: 1em;
