@@ -42,7 +42,7 @@ function websocket(config) {
 		conn.onopen = function(evt) {
 			console.log('websocket connected');
 			connected = true;
-			elstat.innerHTML = "";
+			elstat.innerHTML = config.msgConnectionActive;
 			removeClass(elinfo, "xconn");
 		}
 		conn.onclose = function(evt) {
@@ -53,7 +53,7 @@ function websocket(config) {
 			}, reconnectDelay);
 			setTimeout(function(){
 				if (!connected) {
-					elstat.innerHTML = config.msgClose;
+					elstat.innerHTML = "";
 					addClass(elinfo, "xconn");
 				}
 			}, errorReportDelay);

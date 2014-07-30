@@ -39,7 +39,7 @@ div.info {
 	display: block;
 }
 .xconn {
-	color: #ccc;
+	color: #444;
 }
 div.hidden {
 	display: none;
@@ -58,8 +58,8 @@ div.infobox {
 .fa-info-circle {
 	color: blue;
 }
-.fa-exclamation-triangle {
-	color: red;
+.fa-check-square {
+	color: green;
 }
 .dropzone {
 	min-height: 360px;

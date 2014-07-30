@@ -29,15 +29,15 @@
 				<input name="do" type="hidden" value="upload">
 			</form>
 		</div>
-		<div id="status"></div>
 		<div id="info">{{template "info" .}}</div>
+		<div id="status"></div>
 		<script type="text/javascript">
 			(function() {
 				websocket({
 					url: "ws://{{$.Host}}{{$.Prefix}}ws{{$.Query}}",
 					elementStatus: document.getElementById("status"),
 					elementInfo: document.getElementById("info"),
-					msgClose: '<p><i class="fa fa-exclamation-triangle"></i> {{template "msgConnClose"}}</p>'
+					msgConnectionActive: '<p><i class="fa fa-check-square"></i> {{template "msgWebsocketActive"}}</p>'
 				});
 			})();
         </script>
